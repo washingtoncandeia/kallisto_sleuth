@@ -1,7 +1,6 @@
 ##--------------------------------------------
 # Sleuth - RNA-seq Virus Zika
 # Washington Candeia de Araujo
-# Versão Windows 10 (02/10/2017)
 # Instituto de Medicina Tropical - IMD - UFRN
 # Script Likelihood Ratio Test
 ##--------------------------------------------

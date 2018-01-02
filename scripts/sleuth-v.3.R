@@ -14,7 +14,7 @@ library("ggplot2")
 library("jsonlite")
 
 ## 1-Redirecionando para os diretorios de resultados
-base_dir <- "/scratch/global/wcdaraujo/sleuth_"
+base_dir <- "/scratch/global/wcdaraujo/sleuth"
 sample_id <- dir(file.path(base_dir,"results"))
 sample_id
 kal_dirs <- sapply(sample_id, function(id) file.path(base_dir, "results", id))

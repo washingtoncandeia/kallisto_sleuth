@@ -1,5 +1,5 @@
 ##--------------------------------------------
-# Sleuth - RNA-seq Virus Zika
+# Sleuth - RNA-seq Transcripts
 # Washington Candeia de Araujo
 # Instituto de Medicina Tropical - IMD - UFRN
 # Script Wald Test

@@ -42,11 +42,14 @@ so <- sleuth_lrt(so, 'reduced', 'full')
 models(so)
 
 sleuth_live(so)
+
+
 ##----------------------------------------------------------------
 # Examinar os resultados do teste
 # sleuth_results(so, 'reduced:full', 'lrt', show_all = FALSE)
 sleuth_table <- sleuth_results(so, 'reduced:full', 'lrt', show_all = FALSE)
 sleuth_significant <- dplyr::filter(sleuth_table, qval <= 0.01)
+
 # Obter genes significantes:
 head(sleuth_significant, 20)
 # The table shown above displays the top 20 significant genes 

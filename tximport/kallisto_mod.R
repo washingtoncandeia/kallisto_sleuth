@@ -1,7 +1,8 @@
 ## Kallisto
 # Data: 21/11/2019
-# Modificação criando data frame do zero
-
+# Criação de data frame amostras.txt do zero
+# amostras.txt == samples.txt
+##
 library(readr)
 library(tximport)
 

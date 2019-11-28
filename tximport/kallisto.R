@@ -1,7 +1,6 @@
-## Kallisto
-# Data: 26/11/2019
+## Análise em Nível de Transcrito Kallisto
+# Data: 27/11/2019
 
-library(readr)
 library(tximport)
 library(biomaRt)
 library(DESeq2)
@@ -9,7 +8,7 @@ library(readr)
 library(dplyr)
 library(rhdf5)
 library(RColorBrewer)
-
+library(dplyr)
 
 ## Parte 1 - Preparação de dados das amostras de kallisto.
 # Caminho dos arquivos (fele path)
@@ -19,7 +18,7 @@ list.files(dir)
 
 # Nomes de populações
 ZIKA <- 'ZIKA'
-CHIKV <- 'CHIIKV'
+CHIKV <- 'CHIKV'
 CHIKV_REC <- 'CHIKV_REC'
 GBS <- 'GBS'
 GBS_REC <- 'GBS_REC'
@@ -35,13 +34,13 @@ pop <- c(rep(GBS, 8), rep(CONTROL, 16), rep(ZIKA, 8), rep(GBS, 16),
          rep(CHIKV, 8), rep(CHIKV_REC, 32), rep(ZIKA, 8),
          rep(GBS_REC, 24))
 
-pop          # ZIKA, CHIKV, CHIKV_REC, GBS, GBS_REC, CONTROL
-length(pop)  # 280
+pop              # ZIKA, CHIKV, CHIKV_REC, GBS, GBS_REC, CONTROL
+length(pop)      # 280
 
 # Nome de centro de pesquisa para fazer coluna center
 center <- rep('IMT', 280)
 center
-length(center) # 280 == pop
+length(center)   # 280 == pop
 
 # Nomes de amostras para fazer coluna samples
 amostras <- list.files(dir)
@@ -64,14 +63,26 @@ data_fr$pop
 data_fr$center
 data_fr$samples
 
+## -------------------- Eliminando Linhas do Data Frame por Nomes  -------------------- ##
+## Quando necessário o uso de um data frame menor, com apenas algumas variáveis.
+
+# Usando dplyr, função filter e negando com regex (função grepl)
+
+data_fr <- data_fr %>% 
+  filter(!grepl('GBS', pop))
+
+data_fr
+
+## ------------------------------------------------------------------------------------ ##
+
 
 # Salvar a tabela no formato .txt (tsv)
-write.table(data_fr, 'amostras.txt', sep = '\t')
+write.table(data_fr, 'amostras-ZIKVxCONTROL.txt', sep = '\t')
 
 
 # Criar um vetor nomeado apontando os arquivos de quantificação.
 # Estes arquivos têm seus nomes anotados em uma tabela (samples.txt).
-samples <- read.table('amostras.txt', header = TRUE, row.names = 1)
+samples <- read.table('amostras-ZIKVxCONTROL.txt', header = TRUE, row.names = 1)
 head(samples)
 samples$sample
 mode(samples)
@@ -105,18 +116,19 @@ txi.kallisto <- tximport(files,
 
 
 
+# Salvamento de um objeto R para uso posterior:
+dir.create(path = "./count_estimates/")
+save(txi.kallisto, file = "./count_estimates/txi_count_estimates.Rdata")
 
 
+## Passo 4 - Usando DESeq2 para anaĺise de Expressão Diferencial (DE)
 
+## Wald test para DE:
+# Quais genes estão diferencialmente expressos entre cada tratamento e controles.
 
-
-
-
-
-
-
-
-
+deseq_txi <- DESeqDataSetFromTximport(txi = txi.kallisto,
+                                      colData = data_fr,
+                                      design = ~doentes + refer)
 
 
 

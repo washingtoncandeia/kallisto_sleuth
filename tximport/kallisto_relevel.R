@@ -131,11 +131,6 @@ rownames(samples) <- samples$run
 samples
 samples[ , c('pop', 'center', 'run', 'condition', 'replicate')]
 
-# Relevel factor para control como referencia
-#reference <- 'control'
-samples$condition <- relevel(x = samples$condition,
-                             ref = 'control')
-
 
 # Obtendo cada arquivo de replicata das amostras usadas em kallisto:
 files <- file.path(dir, samples$run, 'abundance.h5')
@@ -193,6 +188,12 @@ keep <- rowSums(counts(dds.txi)) >= 10
 # Renomear dds.txi para dds:
 dds <- dds.txi[keep,]
 rm(keep)
+
+# Relevel factor para control como referencia
+#reference <- 'control'
+# Relevel como exemplo:
+dds$condition <- relevel(dds$condition,
+                        ref = "control")
 
 # Objeto dds por DESeq2
 dds <- DESeq(dds)

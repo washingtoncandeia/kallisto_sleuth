@@ -190,7 +190,7 @@ head(txi.kallisto$abundance)
 ## Design com formula simples:
 dds.txi <- DESeqDataSetFromTximport(txi = txi.kallisto,
                                     colData = samples,
-                                    design = ~replicate + condition)
+                                    design = ~condition)
 
 # Agora, o objeto dds.Txi pode ser usado como aquele dds nos
 # passos subsequentes de DESeq2.
@@ -210,8 +210,7 @@ head(dds$replicate)
 #reference <- 'control'
 head(dds$condition, 9)
 # Relevel como exemplo:
-dds$condition <- relevel(dds$condition,
-                        ref = "control")
+#dds$condition <- relevel(dds$condition, ref = "control")
 
 
 ### Análise de Expressão Diferencial (DE)
@@ -226,7 +225,7 @@ res
 
 # Note que podemos especificar o coeficiente ou contraste 
 # que queremos construir como uma tabela de resultados, usando:
-res <- results(dds, contrast = c('condition', 'zika', 'control'))
+res <- results(dds, contrast = c('condition', 'control', 'zika'))
 
 # Visualizar
 res
@@ -283,6 +282,11 @@ metadata(resIHW)$ihwResult
 # sobre a média de contagens normalizadas para todas as amostras no DESeqDataSet.
 plotMA(res , ylim = c(-2, 2))
 
+# Após utilizar plotMA pode-se utilizar a função identify para detectar interativamente
+# o número de linhas de genes individuais ao clicar no plot.
+# Pode-se então resgatar os IDs dos genes salvando os índices resultantes.
+#idx <- identify(res$baseMean, res$log2FoldChange)
+
 # Pontos em vermelho: se o valor p ajustado (adjusted p value) for menor que 0.1.
 
 # Visualizando para log2 fold changes que foram contraídos (LFC)
@@ -290,21 +294,8 @@ plotMA(res , ylim = c(-2, 2))
 # sem requerimento de thresholds de filtragem arbitrários.
 plotMA(resLFC, ylim=c(-2,2))
 
-# Após utilizar plotMA pode-se utilizar a função identify para detectar interativamente
-# o número de linhas de genes individuais ao clicar no plot.
-# Pode-se então resgatar os IDs dos genes salvando os índices resultantes.
-idx <- identify(res$baseMean, res$log2FoldChange)
-
-
 ### Alternative Shrinkage Estimators
-## Alternative Shrinkage Estimators
-
-# because we are interested in treated vs untreated, we set 'coef=2'
-resNorm <- lfcShrink(dds, coef=2, type="normal")
-
-
 ## Lembrar de objeto LFC e Shrinkage
-
 
 # Especificar o coeficiente pela ordem em que aparece em results(dds)
 # O coeficiente usado em lfcShrink anterior (resNorm) foi "condition zika vs control"
@@ -433,11 +424,6 @@ res
 # Criar csv (pode ser usado em fgsea)
 write.csv(as.data.frame(res), file = 'zika_vs_controls_results_res_GSEA.csv')
 
-## Observação: há outra forma de criar
-# Criar csv para fgsea para ctrstZikaxCTL:
-
-#ctrstZikaxCTL <- as.data.frame(results(dds, contrast = c('condition','zika','control')))
-#write.csv(ctrstZikaxCTL, 'zika_control_tximport_GSEA_2019.csv')
 
 ## Obejto res Reordenado por p-values e adjusted p-vaules:
 resOrdered <- res[order(res$pvalue), ]
@@ -452,9 +438,14 @@ write.csv(as.data.frame(resOrdered), file="zika_vs_controls_results_reOrdered_GS
 # resNorm
 # resAsh
 
+## Observação: há outra forma de criar
+# Criar csv para fgsea para ctrstZikaxCTL:
+
+ctrstZikaxCTL <- as.data.frame(results(dds, contrast = c('condition', 'zika', 'control')))
+#write.csv(ctrstZikaxCTL, 'zika_control_tximport_GSEA_2019.csv')
 
 #### Volcanoplot
-with(as.data.frame(ctrstZikaxCTL[!(-log10(ctrstZikaxCTL$padj) == 0), ]), 
+with(as.data.frame(ctrstZikaxCTL[!(-log10(res$padj) == 0), ]), 
      plot(log2FoldChange,-log10(padj), 
           pch=16, 
           axes=T, 

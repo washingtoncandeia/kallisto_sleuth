@@ -1,20 +1,18 @@
 ## Análise em Nível de Transcrito Kallisto
 ## Utilizando Triplicatas
-# Wald test p-value: condition zika vs control 
-# Data: 04/12/2019
+# Data: 30/11/2019
 library(tximport)
-library(apeglm)
 library(biomaRt)
 library(DESeq2)
 library(readr)
 library(dplyr)
 library(rhdf5)
-library(IHW)
 
 ## Parte 1 - Preparação de dados das amostras de kallisto.
 # Caminho dos arquivos (fele path)
 dir <- './results'
 list.files(dir)
+
 
 # Nomes de populações
 ZIKA <- 'ZIKA'
@@ -35,7 +33,7 @@ pop <- c(rep(GBS, 3), rep(CONTROL, 6), rep(ZIKA, 3), rep(GBS, 6),
          rep(CHIKV_REC, 12), rep(ZIKA, 3), rep(GBS_REC, 9))
 
 
-head(pop, 12)    # ZIKA, CHIKV, CHIKV_REC, GBS, GBS_REC, CONTROL
+pop              # ZIKA, CHIKV, CHIKV_REC, GBS, GBS_REC, CONTROL
 length(pop)      # 105
 
 
@@ -60,26 +58,21 @@ condition <- c(rep('gbs', 3), rep('control', 6), rep('zika', 3), rep('gbs', 6),
                rep('chikv_rec', 12), rep('zika', 3), rep('gbs_rec', 9))
 
 
-## Parte II
-# Aqui inicia-se a construção do data frame com todas as informações de amostras.
-
-
 # Replicatas
 replicates <- c('rep01', 'rep02', 'rep03 ')
 
 
 ## Parte 2 - Unir cada vetor formando colunas de um data frame:
-samples_info <- data.frame(pop = pop,
-                           center = center,
-                           run = run,
-                           condition = condition,
-                           replicate = rep(replicates, 35))   
+samples_info <- data.frame(pop = pop, 
+                      center = center, 
+                      run = run,
+                      condition = condition,
+                      replicate = rep(replicates, 35))   
 
 # Obs.: Replicate: Não colocar 105 pois são de 3 em 3.
 # Logo: 35 x 3 = 105. Repete-se a tríade 35 vezes, o que geram 105 replicatas.
 
 
-# Observações gerais:
 head(samples_info, 10)
 str(samples_info)
 names(samples_info)
@@ -120,12 +113,12 @@ samples_info
 
 
 # Salvar a tabela no formato .txt (tsv)
-write.table(samples_info, 'condition_zika_vs_control_GSEA.txt', sep = '\t')
+write.table(samples_info, 'amostras_zikvCtl.txt', sep = '\t')
 
 
 # Criar um vetor nomeado apontando os arquivos de quantificação.
 # Estes arquivos têm seus nomes anotados em uma tabela (samples.txt).
-samples <- read.table('condition_zika_vs_control_GSEA.txt', header = TRUE, row.names = 1)
+samples <- read.table('amostras_zikvCtl.txt', header = TRUE, row.names = 1)
 head(samples)
 samples$condition 
 mode(samples)
@@ -143,7 +136,7 @@ files
 names(files) <- samples$run
 files
 
-## Usando biomaRt para nomear transcritos e genes
+# Usando biomaRt
 mart <- biomaRt::useMart(biomart = "ensembl", 
                          dataset = "hsapiens_gene_ensembl", 
                          host="www.ensembl.org")
@@ -163,9 +156,7 @@ head(t2g, 20)
 ## Ao utilizar o tximport prestar atenção na opção ignoreTxVersion.
 
 
-### Parte III - Tximport Utlizando Arquivos kallisto
-## Quantificação de Abundâncias de Transcritos com kallisto
-## Análise de Expressão Diferencial (DE) com DESeq2.
+### Usando tximport para kallisto
 
 
 # Estimativa de contagens a partir de kallisto,
@@ -177,20 +168,47 @@ txi.kallisto <- tximport(files,
                          ignoreTxVersion = TRUE,
                          ignoreAfterBar = TRUE)
 
+head(txi.kallisto)
 
-# Observações gerais
+# Salvamento de um objeto R para uso posterior:
+dir.create(path = "./count_estimates/")
+save(txi.kallisto, file = "./count_estimates/txi_count_Trip_estimates.Rdata")
+
+
+# Observar a lista gerada
+head(txi.kallisto)
 names(txi.kallisto)
 head(txi.kallisto$abundance)
 
-# Salvamento de um objeto R para uso posterior:
-#dir.create(path = "./count_estimates/")
-#save(txi.kallisto, file = "./count_estimates/txi_count_Trip_estimates.Rdata")
 
 #### Parte IV - DESeq2
-## Design com formula simples:
+## Design com formula simples: sem avisos R; menor chance de erro.
 dds.txi <- DESeqDataSetFromTximport(txi = txi.kallisto,
                                     colData = samples,
-                                    design = ~condition)
+                                    design= ~ condition)
+
+# Agora, o objeto dds.Txi pode ser usado como aquele dds nos
+# passos subsequentes de DESeq2.
+
+
+## Design com formula ~replicate + condition
+# dds.txi <- DESeqDataSetFromTximport(txi = txi.kallisto,
+#                                     colData = samples,
+#                                     design= ~ replicate + condition)
+
+
+## Observação de informarção após esse comando acima:
+# https://support.bioconductor.org/p/62245/
+
+# Michael Love responde:
+# "Because you have other variables in the design other than Condition (Sex and ERCCMix), 
+# you do not have 3 replicates of a unique combination of the design variables. 
+# The count outlier behavior is explained in the vignette section "Approach to count outliers":
+
+# "The results function automatically flags genes which contain a Cook’s distance above a cutoff 
+# for samples which have 3 or more replicates."
+
+# "With less than 3 replicates per unique combination, there is no filtering of potential count outliers."
 
 # Agora, o objeto dds.Txi pode ser usado como aquele dds nos
 # passos subsequentes de DESeq2.
@@ -209,9 +227,6 @@ head(dds$replicate)
 # Relevel factor para control como referencia
 #reference <- 'control'
 head(dds$condition, 9)
-# Relevel como exemplo:
-#dds$condition <- relevel(dds$condition, ref = "control")
-
 
 ### Análise de Expressão Diferencial (DE)
 # Objeto dds por DESeq2
@@ -225,7 +240,7 @@ res
 
 # Note que podemos especificar o coeficiente ou contraste 
 # que queremos construir como uma tabela de resultados, usando:
-res <- results(dds, contrast = c('condition', 'control', 'zika'))
+res <- results(dds, contrast = c('condition', 'zika', 'control'))
 
 # Visualizar
 res
@@ -282,11 +297,6 @@ metadata(resIHW)$ihwResult
 # sobre a média de contagens normalizadas para todas as amostras no DESeqDataSet.
 plotMA(res , ylim = c(-2, 2))
 
-# Após utilizar plotMA pode-se utilizar a função identify para detectar interativamente
-# o número de linhas de genes individuais ao clicar no plot.
-# Pode-se então resgatar os IDs dos genes salvando os índices resultantes.
-#idx <- identify(res$baseMean, res$log2FoldChange)
-
 # Pontos em vermelho: se o valor p ajustado (adjusted p value) for menor que 0.1.
 
 # Visualizando para log2 fold changes que foram contraídos (LFC)
@@ -294,8 +304,21 @@ plotMA(res , ylim = c(-2, 2))
 # sem requerimento de thresholds de filtragem arbitrários.
 plotMA(resLFC, ylim=c(-2,2))
 
+# Após utilizar plotMA pode-se utilizar a função identify para detectar interativamente
+# o número de linhas de genes individuais ao clicar no plot.
+# Pode-se então resgatar os IDs dos genes salvando os índices resultantes.
+idx <- identify(res$baseMean, res$log2FoldChange)
+
+
 ### Alternative Shrinkage Estimators
+## Alternative Shrinkage Estimators
+
+# because we are interested in treated vs untreated, we set 'coef=2'
+resNorm <- lfcShrink(dds, coef=2, type="normal")
+
+
 ## Lembrar de objeto LFC e Shrinkage
+
 
 # Especificar o coeficiente pela ordem em que aparece em results(dds)
 # O coeficiente usado em lfcShrink anterior (resNorm) foi "condition zika vs control"
@@ -331,8 +354,8 @@ d <- plotCounts(dds, gene=which.min(res$padj), intgroup="condition",
                 returnData=TRUE)
 library("ggplot2")
 ggplot(d, aes(x=condition, y=count)) + 
-      geom_point(position=position_jitter(w=0.1,h=0)) + 
-      scale_y_log10(breaks=c(25,100,400))
+  geom_point(position=position_jitter(w=0.1,h=0)) + 
+  scale_y_log10(breaks=c(25,100,400))
 
 
 # Outros genes: adicionar on ID (nome):
@@ -342,8 +365,8 @@ plotCounts(dds, gene='ENSG00000135845', intgroup="condition")
 e <- plotCounts(dds, gene='ENSG00000135845', intgroup="condition", returnData = T)
 library("ggplot2")
 ggplot(e, aes(x=condition, y=count)) + 
-      geom_point(position=position_jitter(w=0.1,h=0)) + 
-      scale_y_log10(breaks=c(25,100,400))
+  geom_point(position=position_jitter(w=0.1,h=0)) + 
+  scale_y_log10(breaks=c(25,100,400))
 
 # Outros genes
 f <- plotCounts(dds, gene='ENSG00000168300', intgroup="condition", returnData = T)
@@ -424,6 +447,11 @@ res
 # Criar csv (pode ser usado em fgsea)
 write.csv(as.data.frame(res), file = 'zika_vs_controls_results_res_GSEA.csv')
 
+## Observação: há outra forma de criar
+# Criar csv para fgsea para ctrstZikaxCTL:
+
+#ctrstZikaxCTL <- as.data.frame(results(dds, contrast = c('condition','zika','control')))
+#write.csv(ctrstZikaxCTL, 'zika_control_tximport_GSEA_2019.csv')
 
 ## Obejto res Reordenado por p-values e adjusted p-vaules:
 resOrdered <- res[order(res$pvalue), ]
@@ -438,14 +466,9 @@ write.csv(as.data.frame(resOrdered), file="zika_vs_controls_results_reOrdered_GS
 # resNorm
 # resAsh
 
-## Observação: há outra forma de criar
-# Criar csv para fgsea para ctrstZikaxCTL:
-
-ctrstZikaxCTL <- as.data.frame(results(dds, contrast = c('condition', 'zika', 'control')))
-#write.csv(ctrstZikaxCTL, 'zika_control_tximport_GSEA_2019.csv')
 
 #### Volcanoplot
-with(as.data.frame(ctrstZikaxCTL[!(-log10(res$padj) == 0), ]), 
+with(as.data.frame(ctrstZikaxCTL[!(-log10(ctrstZikaxCTL$padj) == 0), ]), 
      plot(log2FoldChange,-log10(padj), 
           pch=16, 
           axes=T, 

@@ -473,18 +473,23 @@ pca.vst
 # dds <- DESeq(dds)
 res <- results(dds)
 res
-res <- results(dds, contrast = c('condition', 'zika', 'control'))
+res <- results(dds, contrast = c('condition', 'gbs', 'gbs_rec'))
 res
 
+# Criar data frame para análises futuras
+ctrstGBSxGBSrec <- as.data.frame(res)
+#ctrstGBSxGBSrec <- as.data.frame(results(dds, contrast = c('condition', 'gbs', 'gbs_rec')))
+
+
 # Criar csv (pode ser usado em fgsea)
-write.csv(as.data.frame(res), file = 'zika_vs_controls_results_res_GSEA.csv')
+write.csv(as.data.frame(res), file = 'gbs_vs_gbs-rec_results_res_GSEA.csv')
 
 
 ## Obejto res Reordenado por p-values e adjusted p-vaules:
 resOrdered <- res[order(res$pvalue), ]
 
 # Criar csv (pode ser usado em fgsea)
-write.csv(as.data.frame(resOrdered), file="zika_vs_controls_results_reOrdered_GSEA.csv")
+write.csv(as.data.frame(resOrdered), file="gbs_vs_gbs-rec_results_reOrdered_GSEA.csv")
 
 ### Lembrar dos objetos:
 # res
@@ -493,32 +498,27 @@ write.csv(as.data.frame(resOrdered), file="zika_vs_controls_results_reOrdered_GS
 # resNorm
 # resAsh
 
-## Observação: há outra forma de criar
-# Criar csv para fgsea para ctrstZikaxCTL:
-
-ctrstZikaxCTL <- as.data.frame(results(dds, contrast = c('condition', 'zika', 'control')))
-#write.csv(ctrstZikaxCTL, 'zika_control_tximport_GSEA_2019.csv')
 
 #### Volcanoplot
-with(as.data.frame(ctrstZikaxCTL[!(-log10(res$padj) == 0), ]), 
+with(as.data.frame(ctrstGBSxGBSrec [!(-log10(res$padj) == 0), ]), 
      plot(log2FoldChange,-log10(padj), 
           pch=16, 
           axes=T, 
           xlim = c(-6,6), 
           ylim = c(0,4),
           xlab = NA, 
-          ylab = "-Log10(Pvalue-Adjusted)", main = "Febre zika vs Não Infectados \n(~replicate + condition)"
+          ylab = "-Log10(Pvalue-Adjusted)", main = "Guillain-Barré vs Guillain-Barré Rec"
           
      )
 )
 
-with(subset(subset(as.data.frame(ctrstZikaxCTL), padj <= 0.05),
+with(subset(subset(as.data.frame(ctrstGBSxGBSrec ), padj <= 0.05),
             log2FoldChange <= -1), 
      points(log2FoldChange,-log10(padj),
             pch=21, 
             col="black",bg = "#69B1B7"))
 
-with(subset(subset(as.data.frame(ctrstZikaxCTL), padj <= 0.05),
+with(subset(subset(as.data.frame(ctrstGBSxGBSrec ), padj <= 0.05),
             log2FoldChange >= 1), 
      points(log2FoldChange,-log10(padj),
             pch=21,

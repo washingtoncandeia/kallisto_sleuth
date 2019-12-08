@@ -1,7 +1,9 @@
-## Análise em Nível de Transcrito Kallisto
-## Utilizando Triplicatas
+##---------------------------------------------
+# Análise em Nível de Transcrito Kallisto
+# Utilizando Triplicatas
 # Wald test p-value: condition zika vs control 
 # Data: 08/12/2019
+##---------------------------------------------
 library(tximport)
 library(apeglm)
 library(biomaRt)
@@ -239,7 +241,7 @@ dds.txi <- DESeqDataSetFromTximport(txi = txi.kallisto,
 
 # Agora, o objeto dds.Txi pode ser usado como aquele dds nos
 # passos subsequentes de DESeq2.
-head(dds.txi$replicate)
+head(dds.txi$condition)
 
 ## Pre-filtering
 # Filtrar por counts insignificantes.
@@ -249,7 +251,7 @@ keep <- rowSums(counts(dds.txi)) >= 10
 dds <- dds.txi[keep,]
 
 # Observar
-head(dds$replicate)
+head(dds$condition)
 
 # Relevel factor para control como referencia
 #reference <- 'control'
@@ -306,6 +308,9 @@ sum(res$padj < 0.1, na.rm = TRUE)
 res05 <- results(dds, alpha=0.05)
 summary(res05)
 
+# Summary res: comparar
+summary(res)
+
 sum(res05$padj < 0.05, na.rm=TRUE)
 
 
@@ -321,23 +326,48 @@ sum(resIHW$padj < 0.1, na.rm=TRUE)
 
 metadata(resIHW)$ihwResult
 
+### LFC - Log2 Fold Changes Shrinkage
+## Visualizando para log2 fold changes shrinkage, LFC (Shrinkage of Effect Size)
+# associado com mudanças log2 fold changes advindas de baixas contagens de genes
+# sem requerimento de thresholds de filtragem arbitrários.
+plotMA(resLFC, ylim=c(-2,2))
+
 ##### Parte V - Exploração de Resultados
 ## MA-plot
+
+## Lembrar dos objetos:
+# res
+# res05 (padj < 0.05)
+# resOrdered
+# resLFC
+# resIHW
+
 # A função plotMA mostra os log2 fold change atribuível a uma dada variável
 # sobre a média de contagens normalizadas para todas as amostras no DESeqDataSet.
 plotMA(res , ylim = c(-2, 2))
 
-# Após utilizar plotMA pode-se utilizar a função identify para detectar interativamente
-# o número de linhas de genes individuais ao clicar no plot.
-# Pode-se então resgatar os IDs dos genes salvando os índices resultantes.
-#idx <- identify(res$baseMean, res$log2FoldChange)
+# Objeto com alpha < 0.05 (adjusted p-value < 0.1)
+plotMA(res05, ylim = c(-2, 2))
+
+# Objeto reOrdenado
+plotMA(resOrdered, ylim = c(-2, 2))
+
+# Objeto resLFC
+plotMA(resLFC, ylim = c(-2, 2))
+
+# Objeto resIHW
+plotMA(resIHW, ylim = c(-2, 2))
+
+# Agora, observar os plots juntos
+par(mfrow=c(2,3), mar=c(4,4,4,2))
+xlim <- c(1,1e5); ylim <- c(-3,3)
+plotMA(res, xlim=xlim, ylim=ylim, main="Zika vs Control \n(pdaj < 0.1)")
+plotMA(resOrdered, xlim=xlim, ylim=ylim, main="Zika vs Control \n(Reordenado por menor pvalue)")
+plotMA(resLFC, xlim=xlim, ylim=ylim, main="Zika vs Control \n(LFC)")
+plotMA(res05, xlim=xlim, ylim=ylim, main="Zika vs Control \n(padj < 0.05)")
+plotMA(resIHW, xlim=xlim, ylim=ylim, main="Zika vs Control \n(IHW)")
 
 # Pontos em vermelho: se o valor p ajustado (adjusted p value) for menor que 0.1.
-
-# Visualizando para log2 fold changes que foram contraídos (LFC)
-# associado com mudanças log2 fold changes advindas de baixas contagens de genes
-# sem requerimento de thresholds de filtragem arbitrários.
-plotMA(resLFC, ylim=c(-2,2))
 
 ### Alternative Shrinkage Estimators
 ## Lembrar de objeto LFC e Shrinkage
@@ -347,19 +377,26 @@ plotMA(resLFC, ylim=c(-2,2))
 # Porém, é possível especificar o coeficiente pela ordem em que aparece quando se usa resultsnames(dds):
 resultsNames(dds)
 
+# Em argumento type, pode-se utilar os parâmetros: ashr, apeglm e normal.
+
+# a. ashr - adaptive shrinkage estimator from the ashr package (Stephens 2016)
+# b. apeglm - the adaptive t prior shrinkage estimator from the apeglm package (Zhu, Ibrahim, and Love 2018).
+# c. normal - estimador shrinkage original de DESeq2 (an adaptive Normal distribution as prior).
+
+
 # Usaremos o coeficiente como 2, pois é o que indica condition_zika_Vs_control.
-# Nosso intersse se dá no contraste entre ambos:
+# Nosso interesse se dá no contraste entre ambos:
 # because we are interested in treated vs untreated, we set 'coef=2'
 resNorm <- lfcShrink(dds, coef=2, type="normal")
 resAsh <- lfcShrink(dds, coef=2, type="ashr")
-resLFC <- lfcShrink(dds, coef = 'condition_zika_vs_control', type = 'apeglm')
+resLFC <- lfcShrink(dds, coef=2, type='apeglm')
 
 # Agora, observar os plots juntos
-par(mfrow=c(1,3), mar=c(4,4,2,1))
+par(mfrow=c(1,3), mar=c(4,4,4,2))
 xlim <- c(1,1e5); ylim <- c(-3,3)
-plotMA(resLFC, xlim=xlim, ylim=ylim, main="apeglm")
-plotMA(resNorm, xlim=xlim, ylim=ylim, main="normal")
-plotMA(resAsh, xlim=xlim, ylim=ylim, main="ashr")
+plotMA(resLFC, xlim=xlim, ylim=ylim, main="Zika vs Control \n(LFC, apeglm)")
+plotMA(resNorm, xlim=xlim, ylim=ylim, main="Zika vs Control \n(Normalizados)")
+plotMA(resAsh, xlim=xlim, ylim=ylim, main="Zika vs Control \n(Adaptative Shrinkage Estimator)")
 
 
 ## Plot counts
@@ -425,8 +462,6 @@ colData(vsd)
 
 # RLD - Regularized log Transformation 
 rld <- rlog(dds, blind=FALSE)
-
-# rld retorna objeto DESeqTransform o qual é baseado na classe SummarizedExperiment.
 head(assay(rld), 6)
 
 # Os valores transformados não são contagens, sendo armazenados no slot assay.
@@ -449,40 +484,37 @@ meanSdPlot(assay(vsd))
 # 3. Objeto rld
 meanSdPlot(assay(rld))
 
+
 ## Qualidade de Dados por Clusterização e Visualização
 # Heatmap da matriz de contagem 
 
 #library(pheatmap)
+# 1. Select
 select <- order(rowMeans(counts(dds,normalized = TRUE)),
-                decreasing = TRUE)[1:50]
-
-# Utilizando variável condition e replicates
+                decreasing = TRUE)[1:20]
+# 2. Utilizando variável condition e replicates
 df <- as.data.frame(colData(dds)[,c("condition","replicate")])  # Todas as linhas (genes) e variáveis (colunas condition e replicate)
-
-# Pheatmap (condição e suas replicatas)
+# 3. Pheatmap (condição e suas replicatas)
 pheatmap(assay(ntd)[select,], cluster_rows = FALSE, show_rownames = FALSE,
          cluster_cols = FALSE, annotation_col = df)
 
 
-# Utilizando variável condition e replicates
-df2 <- as.data.frame(colData(dds)[,c("condition","pop")])  # Todas as linhas (genes) e variáveis (colunas condition e replicate)
-
-# Pheatmap (condição e populações)
+# Utilizando variável condition e pop
+df2 <- as.data.frame(colData(dds)[,c("condition","pop")])
 pheatmap(assay(ntd)[select,], cluster_rows = FALSE, show_rownames = FALSE,
          cluster_cols = FALSE, annotation_col = df2)
 
 
-## VSD object
+## VST - Variance Stabilizing Transformation 
 # vsd - condition, replicate (df)
 pheatmap(assay(vsd)[select,], cluster_rows=FALSE, show_rownames=FALSE,
          cluster_cols=FALSE, annotation_col=df)
-
 
 # vsd - condition, pop (df2)
 pheatmap(assay(vsd)[select,], cluster_rows=FALSE, show_rownames=FALSE,
          cluster_cols=FALSE, annotation_col=df2)
 
-## rld object
+## RLD - Regularized log Transformation 
 # rld - condition, replicate (df)
 pheatmap(assay(rld)[select,], cluster_rows=FALSE, show_rownames=FALSE,
          cluster_cols=FALSE, annotation_col=df)
@@ -499,13 +531,9 @@ sampleDists <- dist(t(assay(vsd)))
 
 # library(RColorBrewer)
 sampleDistMatrix <- as.matrix(sampleDists)
-
 rownames(sampleDistMatrix) <- paste(vsd$condition, vsd$run, sep=" - ")
-
 colnames(sampleDistMatrix) <- NULL
-
-colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
-
+colors <- colorRampPalette( rev(brewer.pal(9, "Reds")) )(255)
 pheatmap(sampleDistMatrix,
          clustering_distance_rows=sampleDists,
          clustering_distance_cols=sampleDists,
@@ -517,14 +545,12 @@ pheatmap(sampleDistMatrix,
 # abrangidas por seus primeiros componentes principais.
 # Esse gráfico é útil para visualizar o efeito geral de covariantes experimentais (e batch effects).
 
-
 ## Usando VST
 # vsd object
 plotPCA(vsd, intgroup=c("condition", "run"))
 
 # vsd object
 plotPCA(vsd, intgroup=c("condition", "replicate"))
-
 
 ## Usando RLT
 # rld object
@@ -546,9 +572,8 @@ ggplot(pcaData, aes(PC1, PC2, color=condition, shape=replicate)) +
   coord_fixed()
 
 
-
 # Extrair os resultados da análise de DE.
-# Reordenada
+# Relevel
 # dds <- DESeq(dds)
 res <- results(dds, contrast = c('condition', 'zika', 'control'))
 res
@@ -571,37 +596,9 @@ write.csv(resOrdered, file = "zika_vs_controls_results_reOrdered_GSEA.csv")
 
 ### Lembrar dos objetos:
 # res
+# res05 (padj < 0.05)
 # resOrdered
 # resLFC
 # resNorm
 # resAsh
-
-#### Volcanoplot
-with(as.data.frame(ctrstZikaxCTL[!(-log10(res$padj) == 0), ]), 
-     plot(log2FoldChange,-log10(padj), 
-          pch=16, 
-          axes=T, 
-          xlim = c(-6,6), 
-          ylim = c(0,4),
-          xlab = NA, 
-          ylab = "-Log10(Pvalue-Adjusted)", main = "Febre zika vs Não Infectados \n(~replicate + condition)"
-          
-     )
-)
-
-with(subset(subset(as.data.frame(ctrstZikaxCTL), padj <= 0.05),
-            log2FoldChange <= -1), 
-     points(log2FoldChange,-log10(padj),
-            pch=21, 
-            col="black",bg = "#69B1B7"))
-
-with(subset(subset(as.data.frame(ctrstZikaxCTL), padj <= 0.05),
-            log2FoldChange >= 1), 
-     points(log2FoldChange,-log10(padj),
-            pch=21,
-            col="black",bg = "tomato3"))
-
-abline(h=1.3,col="green", lty = 2, cex= 3)
-abline(v=1,col="green", lty = 2, cex= 3)
-abline(v=-1,col="green", lty = 2, cex= 3)
 

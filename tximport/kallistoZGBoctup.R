@@ -3,10 +3,22 @@
 # Utilizando Octuplicatas
 # Wald test p-value: condition gbs vs control
 # Wald test p-value: condition gbs_rec vs control 
-# Wald test p-value: condition gbs_rec vs zika 
-# Wald test p-value: condition gbs vs zika
+# Wald test p-value: condition zika vs control
 # Data: 10/12/2019
 ##---------------------------------------------
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = "3.10")
+
+BiocManager::install(c('tximport', 'apeglm', 'biomaRt', 'DESeq2',
+                       'readr', 'rhdf5', 'IHW', 'vsn', 'genefilter',
+                       'fgsea'))
+
+install.packages(c('dplyr', 'pheatmap', 'RColorBrewer', 'PoiClaClu', 'ashr' ,'devtools'))
+
+devtools::install_github("pachterlab/sleuth")
+
 library(tximport)
 library(apeglm)
 library(biomaRt)
@@ -20,6 +32,9 @@ library(pheatmap)
 library(RColorBrewer)
 library(PoiClaClu)
 library(genefilter)
+
+setwd("/data4/waraujo")
+list.files('./')
 
 ## Parte 1 - Preparação de dados das amostras de kallisto.
 # Caminho dos arquivos (fele path)
@@ -312,7 +327,7 @@ samples_info <- samples_info %>%
 samples_info
 
 ## ------------------------------------------------------------------------------------ ##
-
+length(samples_info$condition)
 # Salvar a tabela no formato .txt (tsv)
 write.table(samples_info, './tables/gbs/condition_zika_gbs_gbs_rec_vs_control.txt', sep = '\t')
 
@@ -379,15 +394,16 @@ head(txi.kallisto$abundance)
 #dir.create(path = "./count_estimates/")
 save(txi.kallisto, file = "./count_estimates/gbs/ZGB.Rdata")
 
-# Relevel: ajustando a condição referência para análise
-dds.txi$condition <- relevel(dds.txi$condition, ref = 'control')
-str(dds.txi$condition)
 
 #### Parte IV - DESeq2
 ## Design com formula simples:
 dds.txi <- DESeqDataSetFromTximport(txi = txi.kallisto,
                                     colData = samples,
                                     design = ~condition)
+
+# Relevel: ajustando a condição referência para análise
+dds.txi$condition <- relevel(dds.txi$condition, ref = 'control')
+str(dds.txi$condition)
 
 # Agora, o objeto dds.Txi pode ser usado como aquele dds nos
 # passos subsequentes de DESeq2.
@@ -436,12 +452,17 @@ write.csv(as.data.frame(res), file = './GSEA/gbs/condition_zika_gbs_gbs_rec_vs_c
 # Shrinkage of effect size (LFC estimates)
 resultsNames(dds)
 
+## coeficientes nesta análise: 
+# coef = 1 ("condition_gbs_vs_control")     
+# coef = 2 ("condition_gbs_rec_vs_control")
+# coef = 3 ("condition_zika_vs_control") 
+
 ### LFC - Log2 Fold Changes Shrinkage
 ## Visualizando para log2 fold changes shrinkage, LFC (Shrinkage of Effect Size)
 # associado com mudanças log2 fold changes advindas de baixas contagens de genes
 # sem requerimento de thresholds de filtragem arbitrários.
 # Para contrair (shrink) LFC passar objeto dds para função lfcShrink:
-resLFC <- lfcShrink(dds, coef = 'condition_gbs_rec_vs_control', type = 'apeglm')  # coef = 3
+resLFC <- lfcShrink(dds, coef = 'condition_zika_vs_control', type = 'apeglm')  # coef = 3
 
 # Observar
 resLFC
@@ -518,13 +539,26 @@ plotMA(resLFC, ylim = c(-2, 2))
 plotMA(resIHW, ylim = c(-2, 2))
 
 # Agora, observar os plots juntos
+# Versão 1
 par(mfrow=c(2,3), mar=c(4,4,4,2))
 xlim <- c(1,1e5); ylim <- c(-3,3)
-plotMA(res, xlim=xlim, ylim=ylim, main="Guillain-Barré Rec vs Control \n(pdaj < 0.1)")
+plotMA(res, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(pdaj < 0.1)")
 plotMA(resOrdered, xlim=xlim, ylim=ylim, main="uillain-Barré Rec vs Control \n(Reordenado por menor pvalue)")
-plotMA(resLFC, xlim=xlim, ylim=ylim, main="uillain-Barré Rec vs Control \n(LFC)")
-plotMA(res05, xlim=xlim, ylim=ylim, main="uillain-Barré Rec vs Control \n(padj < 0.05)")
-plotMA(resIHW, xlim=xlim, ylim=ylim, main="uillain-Barré Rec vs Control \n(IHW)")
+plotMA(resLFC, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(LFC)")
+plotMA(resIHW, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(IHW)")
+plotMA(res05, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(padj < 0.05)")
+
+# Versão 2
+par(mfrow=c(2,2), mar=c(4,4,4,2))
+xlim <- c(1,1e5); ylim <- c(-3,3)
+plotMA(res, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(pdaj < 0.1)")
+plotMA(resOrdered, xlim=xlim, ylim=ylim, main="uillain-Barré Rec vs Control \n(Reordenado por menor pvalue)")
+plotMA(resLFC, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(LFC)")
+plotMA(res05, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(padj < 0.05)")
+plotMA(resIHW, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(IHW)")
+
+
+
 # Pontos em vermelho: se o adjusted p value for menor que 0.1.
 
 ### Alternative Shrinkage Estimators
@@ -533,7 +567,6 @@ plotMA(resIHW, xlim=xlim, ylim=ylim, main="uillain-Barré Rec vs Control \n(IHW)
 # Especificar o coeficiente pela ordem em que aparece em results(dds)
 # O coeficiente usado em lfcShrink anterior (resNorm) foi "condition chikv vs control"
 # Porém, é possível especificar o coeficiente pela ordem em que aparece quando se usa resultsnames(dds):
-resultsNames(dds)
 
 # Em argumento type, pode-se utilar os parâmetros: ashr, apeglm e normal.
 # a. ashr - adaptive shrinkage estimator from the ashr package (Stephens 2016)
@@ -543,29 +576,32 @@ resultsNames(dds)
 
 # Usaremos o coeficiente como 2, pois é o que indica condition_chikv_vs_control.
 resultsNames(dds)
-# Coeficiente 3: chikv_rec_vs_control
-resNorm <- lfcShrink(dds, coef='condition_gbs_rec_vs_control', type="normal")
-resAsh <- lfcShrink(dds, coef='condition_gbs_rec_vs_control', type="ashr")
-resLFC <- lfcShrink(dds, coef='condition_gbs_rec_vs_control', type='apeglm')
+## coeficientes nesta análise: 
+# coef = 1 ("condition_gbs_vs_control")     
+# coef = 2 ("condition_gbs_rec_vs_control")
+# coef = 3 ("condition_zika_vs_control") 
+resNorm <- lfcShrink(dds, coef="condition_zika_vs_control", type="normal")
+resAsh <- lfcShrink(dds, coef="condition_zika_vs_control", type="ashr")
+resLFC <- lfcShrink(dds, coef="condition_zika_vs_control", type='apeglm')
 
 ## Agora, observar os plots juntos para coef = 3
 par(mfrow=c(1,3), mar=c(4,4,4,2))
 xlim <- c(1,1e5); ylim <- c(-3,3)
-plotMA(resLFC, xlim=xlim, ylim=ylim, main="Guillain-Barré Rec vs Control \n(LFC, apeglm)")
-plotMA(resNorm, xlim=xlim, ylim=ylim, main="Guillain-Barré Rec vs Control \n(Normalizados)")
-plotMA(resAsh, xlim=xlim, ylim=ylim, main="Guillain-Barré Rec vs Control \n(Adaptative Shrinkage Estimator)")
+plotMA(resLFC, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(LFC, apeglm)")
+plotMA(resNorm, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(Normalizados)")
+plotMA(resAsh, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control \n(Adaptative Shrinkage Estimator)")
 
-# Coeficiente 3: chikv_rec_vs_control
-resNorm <- lfcShrink(dds, coef=3, type="normal")
-resAsh <- lfcShrink(dds, coef=3, type="ashr")
-resLFC <- lfcShrink(dds, coef=3, type='apeglm')
+# coef = 1 ("condition_gbs_vs_control")  
+resNorm <- lfcShrink(dds, coef="condition_gbs_vs_control", type="normal")
+resAsh <- lfcShrink(dds, coef="condition_gbs_vs_control", type="ashr")
+resLFC <- lfcShrink(dds, coef="condition_gbs_vs_control", type='apeglm')
 
 ## Agora, observar os plots juntos para coef = 3
 par(mfrow=c(1,3), mar=c(4,4,4,2))
 xlim <- c(1,1e5); ylim <- c(-3,3)
-plotMA(resLFC, xlim=xlim, ylim=ylim, main="Guillain-Barré Rec vs Control \n(LFC, apeglm)")
-plotMA(resNorm, xlim=xlim, ylim=ylim, main="Guillain-Barré Rec vs Control \n(Normalizados)")
-plotMA(resAsh, xlim=xlim, ylim=ylim, main="Guillain-Barré Rec vs Control \n(Adaptative Shrinkage Estimator)")
+plotMA(resLFC, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control  \n(LFC, apeglm)")
+plotMA(resNorm, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control  \n(Normalizados)")
+plotMA(resAsh, xlim=xlim, ylim=ylim, main="Zika, GBS, GBS rec vs Control  \n(Adaptative Shrinkage Estimator)")
 
 # Coeficiente 2: chikv_vs_control
 resNorm2 <- lfcShrink(dds, coef=2, type="normal")
@@ -846,5 +882,3 @@ write.csv(as.data.frame(res05), file = './GSEA/gbs/condition_gbs_rec_vs_control_
 # resLFC
 # resNorm
 # resAsh
-
-
